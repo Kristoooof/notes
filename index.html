@@ -54,10 +54,8 @@
    //Settings -> API Keys -> 
 
 Legacy anon, service_role API keys:
-    const supabaseClient = window.supabase.createClient(
-      SUPABASE_URL=" ",
-      SUPABASE_ANON_KEY=" "
-    );
+    // HELYES verzió:
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Az űrlap és a jegyzetlista HTML elemének eltárolása változóba
     const form = document.getElementById("noteForm");
