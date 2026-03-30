@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supabase Notes – mini projekt</title>
+  <!-- JAVÍTOTT SCRIPTSOR -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body style="font-family: Arial; max-width: 800px; margin: 30px auto;">
+  <h1>📝 Supabase Notes – mini projekt</h1>
+  <h2>Új jegyzet</h2>
+  <form id="noteForm" style="display:grid; gap:10px;">
+    <input id="title" placeholder="Cím" required />
+    <textarea id="content" placeholder="Jegyzet szövege" rows="5" required></textarea>
+    <button type="submit">Mentés</button>
+  </form>
+  <hr />
+  <h2>Jegyzetek</h2>
+  <div id="list"></div>
+
+  <script>
+    // Tisztán, szóközök nélkül:
+    const SUPABASE_URL = "https://jtjthdxdikbvlvywbwnj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0anRoZHhkaWtidmx2eXdid25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjQ1NTYsImV4cCI6MjA4ODgwMDU1Nn0.jzo_-HV0v1FGKmK6JiVVeuAfkyEG5zppdGoEJOeMFJ8";
+
+    // Kliens inicializálása
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById("noteForm");
+    const listEl = document.getElementById("list");
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text ?? "";
+      return div.innerHTML;
+    }
+
+    async function loadNotes() {
+      const { data, error } = await supabaseClient
+        .from("notes")
+        .select("id, title, content, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        listEl.innerHTML = `<p style="color:red;">Hiba: ${escapeHtml(error.message)}</p>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        listEl.innerHTML = `<p>Még nincs egyetlen jegyzet sem.</p>`;
+        return;
+      }
+
+      listEl.innerHTML = data.map(note => `
+        <div style="border:1px solid #ccc; padding:10px; margin:10px 0;">
+          <h3>${escapeHtml(note.title)}</h3>
+          <p>${escapeHtml(note.content)}</p>
+          <small>${new Date(note.created_at).toLocaleString('hu-HU')}</small>
+        </div>
+      `).join("");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("title").value.trim();
+      const content = document.getElementById("content").value.trim();
+
+      const { error } = await supabaseClient
+        .from("notes")
+        .insert([{ title, content }]);
+
+      if (error) {
+        alert("Hiba a mentésnél: " + error.message);
+      } else {
+        form.reset();
+        loadNotes();
+      }
+    });
+
+    loadNotes();
+  </script>
+</body>
+</html>
