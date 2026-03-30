@@ -1,32 +1,211 @@
-      const diffMs = now - d;
-      const diffMin = Math.floor(diffMs / 60000);
-      const diffH = Math.floor(diffMs / 3600000);
-      const diffD = Math.floor(diffMs / 86400000);
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supabase Notes – mini projekt</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy:   { 900:'#060f1f', 800:'#0b1a2e', 700:'#0f2540', 600:'#163352' },
+            ocean:  { 500:'#1b6fa8', 400:'#2196c8', 300:'#3db8e0' },
+            forest: { 600:'#0a7e5e', 500:'#0fa07a', 400:'#17c493', 300:'#2ee0ab' },
+            gold:   { 600:'#b8860b', 500:'#d4a017', 400:'#e8b923', 300:'#f5d04e' },
+          },
+          fontFamily: {
+            display: ['"Playfair Display"','serif'],
+            body:    ['"DM Sans"','sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      background: linear-gradient(135deg,#060f1f 0%,#0b1a2e 30%,#0a1e30 50%,#081f1a 75%,#060f1f 100%);
+      background-size: 400% 400%;
+      animation: bgShift 18s ease infinite;
+      min-height: 100vh;
+    }
+    @keyframes bgShift {
+      0%  {background-position:0% 50%}
+      50% {background-position:100% 50%}
+      100%{background-position:0% 50%}
+    }
+    .blob {
+      position:fixed; border-radius:50%; filter:blur(100px);
+      opacity:0.15; pointer-events:none; z-index:0;
+    }
+    .blob-blue  {width:500px;height:500px;background:#1b6fa8;top:-120px;left:-100px;animation:floatA 22s ease-in-out infinite}
+    .blob-green {width:400px;height:400px;background:#0fa07a;bottom:-80px;right:-60px;animation:floatB 26s ease-in-out infinite}
+    .blob-gold  {width:300px;height:300px;background:#d4a017;top:40%;left:60%;animation:floatC 20s ease-in-out infinite}
+    @keyframes floatA{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(80px,60px) scale(1.1)}66%{transform:translate(-40px,100px) scale(.95)}}
+    @keyframes floatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-100px,-80px) scale(1.15)}}
+    @keyframes floatC{0%,100%{transform:translate(0,0) scale(1)}40%{transform:translate(60px,-50px) scale(1.08)}80%{transform:translate(-70px,30px) scale(.92)}}
+    .glass {
+      background:rgba(15,37,64,.55);
+      backdrop-filter:blur(24px);
+      -webkit-backdrop-filter:blur(24px);
+      border:1px solid rgba(255,255,255,.07);
+    }
+    .note-card {transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease}
+    .note-card:hover {
+      transform:translateY(-4px) scale(1.008);
+      box-shadow:0 12px 40px rgba(26,111,168,.18),0 0 0 1px rgba(212,160,23,.2);
+      border-color:rgba(212,160,23,.35);
+    }
+    .btn-glow {position:relative;overflow:hidden;transition:all .3s ease}
+    .btn-glow::before {
+      content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+      background:conic-gradient(from 0deg,transparent,rgba(212,160,23,.15),transparent 40%);
+      animation:btnSpin 4s linear infinite;opacity:0;transition:opacity .3s;
+    }
+    .btn-glow:hover::before{opacity:1}
+    @keyframes btnSpin{100%{transform:rotate(360deg)}}
+    .input-glow:focus{box-shadow:0 0 0 3px rgba(26,111,168,.25),0 0 20px rgba(15,160,122,.1)}
+    .gold-line{height:2px;background:linear-gradient(90deg,transparent,#d4a017,#e8b923,#d4a017,transparent)}
+    @keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    .note-enter{animation:fadeSlideIn .4s ease forwards}
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:#0b1a2e}
+    ::-webkit-scrollbar-thumb{background:#1b6fa8;border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:#2196c8}
+    .toast{animation:toastIn .4s ease,toastOut .4s ease 2.2s forwards}
+    @keyframes toastIn{from{opacity:0;transform:translateY(-20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes toastOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-20px) scale(.95)}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body class="font-body text-gray-200 antialiased relative overflow-x-hidden">
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-green" aria-hidden="true"></div>
+  <div class="blob blob-gold" aria-hidden="true"></div>
+  <div id="toastBox" class="fixed top-6 right-6 z-50 flex flex-col gap-3" aria-live="polite"></div>
 
-      if (diffMin < 1) return "Épp most";
-      if (diffMin < 60) return `${diffMin} perce`;
-      if (diffH < 24) return `${diffH} órája`;
-      if (diffD < 7) return `${diffD} napja`;
-      return d.toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric" });
+  <div class="relative z-10 max-w-3xl mx-auto px-4 py-10 sm:py-16">
+
+    <header class="text-center mb-10">
+      <div class="inline-flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-ocean-500 to-forest-500 flex items-center justify-center shadow-lg shadow-ocean-500/20">
+          <i class="fa-solid fa-feather-pointed text-gold-400 text-lg"></i>
+        </div>
+        <span class="text-sm font-medium tracking-widest uppercase text-ocean-300">Supabase Notes</span>
+      </div>
+      <h1 class="font-display text-4xl sm:text-5xl font-black leading-tight mb-3">
+        <span class="bg-gradient-to-r from-ocean-300 via-gold-400 to-forest-400 bg-clip-text text-transparent">Jegyzetfüzet</span>
+      </h1>
+      <p class="text-gray-400 text-base max-w-md mx-auto leading-relaxed">
+        Rögzítsd gondolataidat – az adatok biztonságosan a felhőben tárolódnak.
+      </p>
+      <div class="gold-line w-48 mx-auto mt-6 rounded-full"></div>
+    </header>
+
+    <section class="glass rounded-2xl p-6 sm:p-8 mb-10 shadow-2xl shadow-navy-900/50" aria-label="Új jegyzet">
+      <h2 class="font-display text-xl font-bold text-gold-400 mb-5 flex items-center gap-2">
+        <i class="fa-solid fa-plus text-forest-400 text-sm"></i>
+        Új jegyzet
+      </h2>
+      <form id="noteForm" class="grid gap-4">
+        <div>
+          <label for="title" class="block text-sm font-medium text-ocean-300 mb-1.5">Cím</label>
+          <input id="title" type="text" required placeholder="Mit szeretnél megjegyezni?"
+            class="input-glow w-full bg-navy-800/70 border border-white/10 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-500 outline-none transition-all focus:border-ocean-400" />
+        </div>
+        <div>
+          <label for="content" class="block text-sm font-medium text-ocean-300 mb-1.5">Szöveg</label>
+          <textarea id="content" required rows="5" placeholder="Írd le a részleteket..."
+            class="input-glow w-full bg-navy-800/70 border border-white/10 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-500 outline-none transition-all resize-y focus:border-ocean-400"></textarea>
+        </div>
+        <button type="submit" id="saveBtn"
+          class="btn-glow mt-1 w-full sm:w-auto sm:justify-self-end bg-gradient-to-r from-forest-600 to-forest-500 hover:from-forest-500 hover:to-forest-400 text-white font-semibold rounded-xl px-8 py-3 flex items-center justify-center gap-2 shadow-lg shadow-forest-600/25 hover:shadow-forest-500/35 active:scale-[0.97]">
+          <i class="fa-solid fa-floppy-disk text-gold-300 text-sm"></i>
+          Mentés
+        </button>
+      </form>
+    </section>
+
+    <section aria-label="Jegyzetek listája">
+      <h2 class="font-display text-xl font-bold text-gold-400 mb-5 flex items-center gap-2">
+        <i class="fa-solid fa-layer-group text-ocean-400 text-sm"></i>
+        Jegyzetek
+        <span id="noteCount" class="ml-2 text-xs font-body font-medium bg-ocean-500/20 text-ocean-300 px-2.5 py-0.5 rounded-full hidden">0</span>
+      </h2>
+      <div id="list" class="grid gap-4"></div>
+    </section>
+
+    <footer class="text-center mt-16 text-gray-600 text-sm">
+      <div class="gold-line w-24 mx-auto mb-4 rounded-full opacity-40"></div>
+      <p>Supabase &middot; Tailwind CSS &middot; Vanilla JS</p>
+    </footer>
+  </div>
+
+  <script>
+    var SUPABASE_URL = "https://jtjthdxdikbvlvywbwnj.supabase.co";
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0anRoZHhkaWtidmx2eXdid25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjQ1NTYsImV4cCI6MjA4ODgwMDU1Nn0.jzo_-HV0v1FGKmK6JiVVeuAfkyEG5zppdGoEJOeMFJ8";
+
+    var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    var form = document.getElementById("noteForm");
+    var listEl = document.getElementById("list");
+    var noteCountEl = document.getElementById("noteCount");
+    var toastBox = document.getElementById("toastBox");
+    var saveBtn = document.getElementById("saveBtn");
+
+    function escapeHtml(text) {
+      var div = document.createElement("div");
+      div.textContent = text || "";
+      return div.innerHTML;
     }
 
-    // Jegyzetek betöltése
+    function showToast(message, type) {
+      type = type || "success";
+      var icons = { success:"fa-circle-check text-forest-400", error:"fa-circle-xmark text-red-400", info:"fa-circle-info text-ocean-400" };
+      var borders = { success:"border-forest-500/30", error:"border-red-500/30", info:"border-ocean-500/30" };
+      var el = document.createElement("div");
+      el.className = "toast glass rounded-xl px-5 py-3 flex items-center gap-3 border " + borders[type] + " shadow-xl min-w-[260px]";
+      el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i><span class="text-sm text-gray-200">' + escapeHtml(message) + '</span>';
+      toastBox.appendChild(el);
+      setTimeout(function() { if (el.parentNode) el.remove(); }, 2800);
+    }
+
+    function formatDate(dateStr) {
+      var d = new Date(dateStr);
+      var now = new Date();
+      var diff = now - d;
+      var min = Math.floor(diff / 60000);
+      var h = Math.floor(diff / 3600000);
+      var day = Math.floor(diff / 86400000);
+      if (min < 1) return "Épp most";
+      if (min < 60) return min + " perce";
+      if (h < 24) return h + " órája";
+      if (day < 7) return day + " napja";
+      return d.toLocaleDateString("hu-HU", { year:"numeric", month:"long", day:"numeric" });
+    }
+
     async function loadNotes() {
-      const { data, error } = await supabaseClient
+      var result = await supabaseClient
         .from("notes")
         .select("id, title, content, created_at")
         .order("created_at", { ascending: false });
 
+      var data = result.data;
+      var error = result.error;
+
       if (error) {
-        listEl.innerHTML = `
-          <div class="glass rounded-xl p-6 border border-red-500/20 text-center">
-            <i class="fa-solid fa-triangle-exclamation text-red-400 text-2xl mb-3 block"></i>
-            <p class="text-red-300 text-sm">Hiba a betöltéskor: ${escapeHtml(error.message)}</p>
-          </div>`;
+        listEl.innerHTML = '<div class="glass rounded-xl p-6 border border-red-500/20 text-center">'
+          + '<i class="fa-solid fa-triangle-exclamation text-red-400 text-2xl mb-3 block"></i>'
+          + '<p class="text-red-300 text-sm">Hiba: ' + escapeHtml(error.message) + '</p></div>';
         return;
       }
 
-      // Darabszám frissítése
       if (data && data.length > 0) {
         noteCountEl.textContent = data.length;
         noteCountEl.classList.remove("hidden");
@@ -35,133 +214,66 @@
       }
 
       if (!data || data.length === 0) {
-        listEl.innerHTML = `
-          <div class="glass rounded-xl p-10 text-center">
-            <i class="fa-regular fa-note-sticky text-4xl text-gray-600 mb-4 block"></i>
-            <p class="text-gray-500 text-base">Még nincs egyetlen jegyzet sem.</p>
-            <p class="text-gray-600 text-sm mt-1">Írj valamit a fenti űrlapban!</p>
-          </div>`;
+        listEl.innerHTML = '<div class="glass rounded-xl p-10 text-center">'
+          + '<i class="fa-regular fa-note-sticky text-4xl text-gray-600 mb-4 block"></i>'
+          + '<p class="text-gray-500 text-base">Még nincs egyetlen jegyzet sem.</p>'
+          + '<p class="text-gray-600 text-sm mt-1">Írj valamit a fenti űrlapban!</p></div>';
         return;
       }
 
-      listEl.innerHTML = data.map((note, i) => {
-        // Váltakozó színélés a kártyák között
-        const accentClass = i % 3 === 0
-          ? "border-l-ocean-400"
-          : i % 3 === 1
-            ? "border-l-forest-400"
-            : "border-l-gold-400";
+      var html = "";
+      for (var i = 0; i < data.length; i++) {
+        var note = data[i];
+        var accent = "border-l-ocean-400";
+        if (i % 3 === 1) accent = "border-l-forest-400";
+        if (i % 3 === 2) accent = "border-l-gold-400";
 
-        return `
-          <article class="note-card note-enter glass rounded-xl border-l-[3px] ${accentClass} p-5 sm:p-6" style="animation-delay: ${i * 60}ms">
-            <div class="flex items-start justify-between gap-4 mb-2">
-              <h3 class="font-display text-lg font-bold text-gray-100 leading-snug">${escapeHtml(note.title)}</h3>
-              <button
-                onclick="deleteNote('${note.id}')"
-                class="flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/15 text-gray-500 hover:text-red-400 flex items-center justify-center transition-all"
-                aria-label="Jegyzet törlése"
-                title="Törlés"
-              >
-                <i class="fa-solid fa-trash-can text-xs"></i>
-              </button>
-            </div>
-            <p class="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap mb-3">${escapeHtml(note.content)}</p>
-            <div class="flex items-center gap-2 text-xs text-gray-500">
-              <i class="fa-regular fa-clock"></i>
-              <time datetime="${note.created_at}">${formatDate(note.created_at)}</time>
-            </div>
-          </article>`;
-      }).join("");
+        html += '<article class="note-card note-enter glass rounded-xl border-l-[3px] '
+          + accent + ' p-5 sm:p-6" style="animation-delay:' + (i * 60) + 'ms">'
+          + '<div class="flex items-start justify-between gap-4 mb-2">'
+          + '<h3 class="font-display text-lg font-bold text-gray-100 leading-snug">' + escapeHtml(note.title) + '</h3>'
+          + '<button onclick="deleteNote(\'' + note.id + '\')" class="flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/15 text-gray-500 hover:text-red-400 flex items-center justify-center transition-all" aria-label="Törlés" title="Törlés">'
+          + '<i class="fa-solid fa-trash-can text-xs"></i></button></div>'
+          + '<p class="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap mb-3">' + escapeHtml(note.content) + '</p>'
+          + '<div class="flex items-center gap-2 text-xs text-gray-500">'
+          + '<i class="fa-regular fa-clock"></i>'
+          + '<time datetime="' + note.created_at + '">' + formatDate(note.created_at) + '</time>'
+          + '</div></article>';
+      }
+      listEl.innerHTML = html;
     }
 
-    // Jegyzet törlése
     async function deleteNote(id) {
-      const { error } = await supabaseClient.from("notes").delete().eq("id", id);
-      if (error) {
-        showToast("Nem sikerült törölni: " + error.message, "error");
+      var result = await supabaseClient.from("notes").delete().eq("id", id);
+      if (result.error) {
+        showToast("Nem sikerült törölni: " + result.error.message, "error");
       } else {
         showToast("Jegyzet törölve", "info");
         loadNotes();
       }
     }
 
-    // Űrlap beküldése
-    form.addEventListener("submit", async (e) => {
+    form.addEventListener("submit", async function(e) {
       e.preventDefault();
-      const title = document.getElementById("title").value.trim();
-      const content = document.getElementById("content").value.trim();
-
+      var title = document.getElementById("title").value.trim();
+      var content = document.getElementById("content").value.trim();
       if (!title || !content) return;
 
-      // Gomb vizuális visszajelzés
-      const btn = form.querySelector("button[type='submit']");
-      const originalHTML = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-gold-300 text-sm"></i> Mentés...`;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-gold-300 text-sm"></i> Mentés...';
 
-      const { error } = await supabaseClient
-        .from("notes")
-        .insert([{ title, content }]);
+      var result = await supabaseClient.from("notes").insert([{ title: title, content: content }]);
 
-      if (error) {
-        showToast("Hiba a mentésnél: " + error.message, "error");
+      if (result.error) {
+        showToast("Hiba a mentésnél: " + result.error.message, "error");
       } else {
         showToast("Jegyzet elmentve!", "success");
         form.reset();
         loadNotes();
       }
 
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
-    });
-
-    // Első betöltés
-    loadNotes();
-  </script>
-</body>
-</html>      return div.innerHTML;
-    }
-
-    async function loadNotes() {
-      const { data, error } = await supabaseClient
-        .from("notes")
-        .select("id, title, content, created_at")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        listEl.innerHTML = `<p style="color:red;">Hiba: ${escapeHtml(error.message)}</p>`;
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        listEl.innerHTML = `<p>Még nincs egyetlen jegyzet sem.</p>`;
-        return;
-      }
-
-      listEl.innerHTML = data.map(note => `
-        <div style="border:1px solid #ccc; padding:10px; margin:10px 0;">
-          <h3>${escapeHtml(note.title)}</h3>
-          <p>${escapeHtml(note.content)}</p>
-          <small>${new Date(note.created_at).toLocaleString('hu-HU')}</small>
-        </div>
-      `).join("");
-    }
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.getElementById("title").value.trim();
-      const content = document.getElementById("content").value.trim();
-
-      const { error } = await supabaseClient
-        .from("notes")
-        .insert([{ title, content }]);
-
-      if (error) {
-        alert("Hiba a mentésnél: " + error.message);
-      } else {
-        form.reset();
-        loadNotes();
-      }
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk text-gold-300 text-sm"></i> Mentés';
     });
 
     loadNotes();
